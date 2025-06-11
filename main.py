@@ -10,14 +10,14 @@ app = FastAPI(title="HTA Model API")
 
 # --- Mapeo a enlaces de Google Drive (actualizar con tus IDs reales) ---
 MODEL_URLS = {
-    "random_forest": "1ErWTn9NDvOBEcUWS21ZziLlOlgAur6cQ",
-    "decision_tree": "1dXTgiO-ARR9ISEdyI_8JJPTlEAakI1kb",
-    "xgboost": "1el7pDgjRomfQbsbhBvhNlSiNSnbD67F7",
-    "adaboost": "1AoQIiSi3yd1lQN5U1taUVJwzUL75mQtQ",
-    "lightgbm": "1wsE7-mgJb5vqF1UE6ye7UHjUyezz_L8I",
-    "catboost": "18kdwHRLfK-gc9_k9N0gTMQTR3y2O_WKa",
-    "red_neuronal": "10FyPnFxo1tbE4k1wCqvCNKRAtkWSKQ03",
-    "svm": "1z7Y5DWQmnp4ywfcOjZym-WbK0vO9MxnQ",
+    "random_forest": "https://drive.google.com/uc?id=1ErWTn9NDvOBEcUWS21ZziLlOlgAur6cQ",
+    "decision_tree": "https://drive.google.com/uc?id=1dXTgiO-ARR9ISEdyI_8JJPTlEAakI1kb",
+    "xgboost": "https://drive.google.com/uc?id=1el7pDgjRomfQbsbhBvhNlSiNSnbD67F7",
+    "adaboost": "https://drive.google.com/uc?id=1AoQIiSi3yd1lQN5U1taUVJwzUL75mQtQ",
+    "lightgbm": "https://drive.google.com/uc?id=1wsE7-mgJb5vqF1UE6ye7UHjUyezz_L8I",
+    "catboost": "https://drive.google.com/uc?id=18kdwHRLfK-gc9_k9N0gTMQTR3y2O_WKa",
+    "red_neuronal": "https://drive.google.com/uc?id=10FyPnFxo1tbE4k1wCqvCNKRAtkWSKQ03",
+    "svm": "https://drive.google.com/uc?id=1z7Y5DWQmnp4ywfcOjZym-WbK0vO9MxnQ",
 }
 
 # --- Request desde Flutter ---
