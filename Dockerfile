@@ -1,25 +1,23 @@
-# Usa una imagen base ligera con Python
 FROM python:3.10-slim
+
+# Instala dependencias del sistema necesarias para LightGBM y otros paquetes
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libgomp1 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Establece el directorio de trabajo en el contenedor
 WORKDIR /app
 
-# Copia primero los archivos de dependencias (mejor para el cache de Docker)
-COPY requirements.txt .
-
-# Instala las dependencias del proyecto
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copia el resto de los archivos del proyecto
+# Copia los archivos del proyecto al contenedor
 COPY . .
 
-# Crea el directorio de modelos (por si no existe)
-RUN mkdir -p modelos
+# Instala las dependencias de Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Expone el puerto de la API
+# Expone el puerto
 EXPOSE 8000
 
-# Comando para ejecutar la app
+# Ejecuta la app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
