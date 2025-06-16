@@ -8,7 +8,7 @@ import gdown
 
 app = FastAPI(title="HTA Model API")
 
-# --- Mapeo a enlaces de Google Drive (actualizar con tus IDs reales) ---
+# --- Mapeo a enlaces de Google Drive ---
 MODEL_URLS = {
     "random_forest": "https://drive.google.com/uc?id=1ErWTn9NDvOBEcUWS21ZziLlOlgAur6cQ",
     "decision_tree": "https://drive.google.com/uc?id=1dXTgiO-ARR9ISEdyI_8JJPTlEAakI1kb",
@@ -20,13 +20,12 @@ MODEL_URLS = {
     "svm": "https://drive.google.com/uc?id=1z7Y5DWQmnp4ywfcOjZym-WbK0vO9MxnQ",
 }
 
-# --- Request desde Flutter ---
 class PredictRequest(BaseModel):
     model: str
     Sexo: Literal["Hombre", "Mujer"]
-    Edad: conint(gt=0)
-    Peso: confloat(gt=0)
-    Altura: confloat(gt=0)
+    Edad: conint(ge=18, le=100)
+    Peso: confloat(ge=20, le=180)
+    Altura: confloat(ge=100, le=220)
     Fuma: Literal["Nunca", "Anteriormente", "Frecuentemente"]
     Alcohol: Literal["No consumo", "Bajo", "Moderado", "Alto"]
     Actividad: Literal["Bajo", "Moderado", "Alto"]
@@ -43,6 +42,8 @@ class PredictResponse(BaseModel):
 _model_cache: dict[str, any] = {}
 
 def descargar_modelo(name: str) -> Path:
+    if name not in MODEL_URLS:
+        raise ValueError(f"Modelo '{name}' no encontrado.")
     url = MODEL_URLS[name]
     dest = Path(f"modelos/modelo_{name}_pipeline.pkl")
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -111,6 +112,7 @@ def predecir(req: PredictRequest):
     riesgo = "Alto" if prob >= 0.75 else "Moderado" if prob >= 0.5 else "Bajo"
 
     return PredictResponse(model=req.model, probability=pct, risk=riesgo)
+
 @app.get("/metricas")
 def metricas():
     return {
@@ -127,38 +129,21 @@ def metricas():
 @app.get("/auc_curvas")
 def auc_curvas():
     return {
-        "random_forest": {
-            "fpr": [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1.0],
-            "tpr": [0.0, 0.6, 0.8, 0.88, 0.93, 0.97, 0.99, 0.995, 0.997, 0.999, 1.0]
-        },
-        "decision_tree": {
-            "fpr": [0.0, 0.1, 0.25, 0.4, 0.6, 0.8, 1.0],
-            "tpr": [0.0, 0.45, 0.9, 0.95, 0.97, 0.98, 1.0]
-        },
-        "xgboost": {
-            "fpr": [0.0, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.9, 1.0],
-            "tpr": [0.0, 0.35, 0.6, 0.75, 0.85, 0.93, 0.97, 0.985, 0.99, 1.0]
-        },
-        "adaboost": {
-            "fpr": [0.0, 0.18, 1.0],
-            "tpr": [0.0, 0.67, 1.0]
-        },
-        "catboost": {
-            "fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
-            "tpr": [0.0, 0.55, 0.75, 0.85, 0.95, 1.0, 1.0]
-        },
-        "lightgbm": {
-            "fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
-            "tpr": [0.0, 0.55, 0.75, 0.9, 1.0, 1.0, 1.0]
-        },
-        "svm": {
-            "fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            "tpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
-        },
-        "red_neuronal": {
-            "fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            "tpr": [0.0, 0.21, 0.42, 0.61, 0.81, 1.0]
-        }
+        "random_forest": {"fpr": [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1.0],
+                          "tpr": [0.0, 0.6, 0.8, 0.88, 0.93, 0.97, 0.99, 0.995, 0.997, 0.999, 1.0]},
+        "decision_tree": {"fpr": [0.0, 0.1, 0.25, 0.4, 0.6, 0.8, 1.0],
+                          "tpr": [0.0, 0.45, 0.9, 0.95, 0.97, 0.98, 1.0]},
+        "xgboost": {"fpr": [0.0, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.9, 1.0],
+                    "tpr": [0.0, 0.35, 0.6, 0.75, 0.85, 0.93, 0.97, 0.985, 0.99, 1.0]},
+        "adaboost": {"fpr": [0.0, 0.18, 1.0], "tpr": [0.0, 0.67, 1.0]},
+        "catboost": {"fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
+                     "tpr": [0.0, 0.55, 0.75, 0.85, 0.95, 1.0, 1.0]},
+        "lightgbm": {"fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
+                     "tpr": [0.0, 0.55, 0.75, 0.9, 1.0, 1.0, 1.0]},
+        "svm": {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+                "tpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]},
+        "red_neuronal": {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+                         "tpr": [0.0, 0.21, 0.42, 0.61, 0.81, 1.0]}
     }
 
 @app.get("/loss_rate")
@@ -186,6 +171,7 @@ def tiempos_inferencia():
         "svm": 5.8094,
         "red_neuronal": 14.8979
     }
+
 #Run api: 
 #uvicorn main:app --reload
 #uvicorn main:app --reload --host 0.0.0.0 --port 8000
