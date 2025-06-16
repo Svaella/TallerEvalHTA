@@ -16,7 +16,7 @@ MODEL_URLS = {
     "adaboost": "https://drive.google.com/uc?id=1AoQIiSi3yd1lQN5U1taUVJwzUL75mQtQ",
     "lightgbm": "https://drive.google.com/uc?id=1wsE7-mgJb5vqF1UE6ye7UHjUyezz_L8I",
     "catboost": "https://drive.google.com/uc?id=18kdwHRLfK-gc9_k9N0gTMQTR3y2O_WKa",
-    "red_neuronal": "https://drive.google.com/uc?id=10FyPnFxo1tbE4k1wCqvCNKRAtkWSKQ03",
+    "red_neuronal": "https://drive.google.com/uc?id=19Qpqm9avGUwa17edly6zjP2QICsCTWXm",
     "svm": "https://drive.google.com/uc?id=1z7Y5DWQmnp4ywfcOjZym-WbK0vO9MxnQ",
 }
 
