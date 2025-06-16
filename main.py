@@ -120,7 +120,7 @@ def metricas():
         "adaboost": {"accuracy": 0.75, "precision": 0.75, "recall": 0.75, "f1_score": 0.75},
         "lightgbm": {"accuracy": 0.79, "precision": 0.80, "recall": 0.79, "f1_score": 0.79},
         "catboost": {"accuracy": 0.82, "precision": 0.86, "recall": 0.82, "f1_score": 0.83},
-        "red_neuronal": {"accuracy": 0.50, "precision": 0.59, "recall": 0.50, "f1_score": 0.52},
+        "red_neuronal": {"accuracy": 0.56, "precision": 0.60, "recall": 0.56, "f1_score": 0.57},
         "svm": {"accuracy": 0.50, "precision": 0.59, "recall": 0.50, "f1_score": 0.52}
     }
 
@@ -161,6 +161,31 @@ def auc_curvas():
         }
     }
 
+@app.get("/loss_rate")
+def loss_rate():
+    return {
+        "random_forest": {"train": 0.00, "test": 0.1176},
+        "decision_tree": {"train": 0.0835, "test": 0.2485},
+        "xgboost": {"train": 0.0954, "test": 0.1946},
+        "adaboost": {"train": 0.00, "test": 0.2477},
+        "catboost": {"train": 0.1280, "test": 0.1756},
+        "lightgbm": {"train": 0.1713, "test": 0.2124},
+        "svm": {"train": 0.4501, "test": 0.4838},
+        "red_neuronal": {"train": 0.2855, "test": 0.4428}
+    }
+
+@app.get("/tiempos_inferencia")
+def tiempos_inferencia():
+    return {
+        "random_forest": 9.7655,
+        "decision_tree": 0.1543,
+        "xgboost": 0.4749,
+        "adaboost": 0.3062,
+        "catboost": 0.2726,
+        "lightgbm": 0.7771,
+        "svm": 5.8094,
+        "red_neuronal": 14.8979
+    }
 #Run api: 
 #uvicorn main:app --reload
 #uvicorn main:app --reload --host 0.0.0.0 --port 8000
