@@ -29,7 +29,7 @@ class PredictRequest(BaseModel):
     Fuma: Literal["Nunca", "Anteriormente", "Frecuentemente"]
     Alcohol: Literal["No consumo", "Bajo", "Moderado", "Alto"]
     Actividad: Literal["Bajo", "Moderado", "Alto"]
-    Suenho: confloat(ge=0, le=24)
+    Suenho: confloat(ge=4, le=12)
     Antecedentes: Literal["Sí", "No"]
     Estres: conint(ge=1, le=9)
     Sal: Literal["Bajo", "Moderado", "Alto"]
