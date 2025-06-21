@@ -5,34 +5,40 @@ import joblib
 import pandas as pd
 from pathlib import Path
 import gdown
+import numpy as np
+import warnings
+
+warnings.filterwarnings("ignore")  # silenciar advertencias
 
 app = FastAPI(title="HTA Model API")
 
-# --- Mapeo a enlaces de Google Drive ---
 MODEL_URLS = {
-    "random_forest": "https://drive.google.com/uc?id=1ErWTn9NDvOBEcUWS21ZziLlOlgAur6cQ",
-    "decision_tree": "https://drive.google.com/uc?id=1dXTgiO-ARR9ISEdyI_8JJPTlEAakI1kb",
-    "xgboost": "https://drive.google.com/uc?id=1el7pDgjRomfQbsbhBvhNlSiNSnbD67F7",
-    "adaboost": "https://drive.google.com/uc?id=1AoQIiSi3yd1lQN5U1taUVJwzUL75mQtQ",
-    "lightgbm": "https://drive.google.com/uc?id=1wsE7-mgJb5vqF1UE6ye7UHjUyezz_L8I",
-    "catboost": "https://drive.google.com/uc?id=18kdwHRLfK-gc9_k9N0gTMQTR3y2O_WKa",
-    "red_neuronal": "https://drive.google.com/uc?id=19Qpqm9avGUwa17edly6zjP2QICsCTWXm",
-    "svm": "https://drive.google.com/uc?id=1z7Y5DWQmnp4ywfcOjZym-WbK0vO9MxnQ",
+    "random_forest": "https://drive.google.com/uc?id=17kNgBN52bxwV5aKs78-lZm2WkSqAX1tz",
+    "decision_tree": "https://drive.google.com/uc?id=1q1_qpmdbBuxDBYjmi0I1n5LyxYKt1oDT",
+    "xgboost": "https://drive.google.com/uc?id=1qH8isdosuvqkBSH40XKIxS6UxTW566sC",
+    "adaboost": "https://drive.google.com/uc?id=15V1oi9KORNr8J2M0KZlyg7fVEw8iG0BC",
+    "lightgbm": "https://drive.google.com/uc?id=10VfCN_tcz2AKwS2pUyGjITUrj6yCFvQk",
+    "catboost": "https://drive.google.com/uc?id=1nI6eLS0imUpEn26x-EKk0H4EpEPh1lqd",
+    "red_neuronal": "https://drive.google.com/uc?id=CbOfVENf9457nFVd6L7S-v0A3yv_Wwwa",
+    "svm_rbf": "https://drive.google.com/uc?id=1I1nj9mnP_RMZLgVm0CK1U8f1raxxMN1x"
 }
 
 class PredictRequest(BaseModel):
     model: str
-    Sexo: Literal["Hombre", "Mujer"]
-    Edad: conint(ge=18, le=100)
+    Age: conint(ge=1, le=13)
+    Sex: Literal["Hombre", "Mujer"]
     Peso: confloat(ge=20, le=180)
     Altura: confloat(ge=100, le=220)
-    Fuma: Literal["Nunca", "Anteriormente", "Frecuentemente"]
-    Alcohol: Literal["No consumo", "Bajo", "Moderado", "Alto"]
-    Actividad: Literal["Bajo", "Moderado", "Alto"]
-    Suenho: confloat(ge=4, le=12)
-    Antecedentes: Literal["Sí", "No"]
-    Estres: conint(ge=1, le=9)
-    Sal: Literal["Bajo", "Moderado", "Alto"]
+    MentHlth: conint(ge=0, le=30)
+    Frutas: Literal["Sí", "No"]
+    Verduras: Literal["Sí", "No"]
+    Sal: Literal["Sí", "No"]
+    Actividad: Literal["Sí", "No"]
+    Fuma: Literal["Fumador Actual - Todos los días", "Fumador Actual - Algunos días", "Exfumador", "No Fumo"]
+    Vapeo: Literal["Todos los días", "Algunos días", "Raramente", "Nunca he usado"]
+    Alcohol30d: Literal["Sí", "No"]
+    Diabetes: Literal["Sí", "No"]
+    Colesterol: Literal["Sí", "No"]
 
 class PredictResponse(BaseModel):
     model: str
@@ -45,7 +51,7 @@ def descargar_modelo(name: str) -> Path:
     if name not in MODEL_URLS:
         raise ValueError(f"Modelo '{name}' no encontrado.")
     url = MODEL_URLS[name]
-    dest = Path(f"modelos/modelo_{name}_pipeline.pkl")
+    dest = Path(f"modelos/modelo_{name}.pkl")
     dest.parent.mkdir(parents=True, exist_ok=True)
     if not dest.exists():
         gdown.download(url, str(dest), quiet=False)
@@ -59,27 +65,33 @@ def cargar_modelo(name: str):
     _model_cache[name] = model
     return model
 
-def transformar_a_lista(req: PredictRequest) -> list:
-    if req.model == "svm":
-        sexo = 1 if req.Sexo == "Hombre" else 0
-        fuma = {"Nunca": 0, "Anteriormente": 1, "Frecuentemente": 2}[req.Fuma]
-        actividad = {"Alto": 0, "Moderado": 1, "Bajo": 2}[req.Actividad]
-        alcohol = {"No consumo": 0, "Bajo": 1, "Moderado": 2, "Alto": 3}[req.Alcohol]
-        sal = {"Bajo": 0, "Moderado": 1, "Alto": 2}[req.Sal]
-        bmi = round(req.Peso / ((req.Altura / 100) ** 2), 2)
-        antecedentes = 1 if req.Antecedentes == "Sí" else 0
-        return [sexo, req.Edad, bmi, actividad, req.Suenho, fuma, antecedentes, req.Estres, sal, alcohol]
+def transformar_a_vector(req: PredictRequest) -> list:
+    sexo = 1 if req.Sex == "Hombre" else 0
+    frutas = 1 if req.Frutas == "Sí" else 0
+    verduras = 1 if req.Verduras == "Sí" else 0
+    sal = 1 if req.Sal == "Sí" else 0
+    actividad = 1 if req.Actividad == "Sí" else 0
+    alcohol = 1 if req.Alcohol30d == "Sí" else 0
+    colesterol = 1 if req.Colesterol == "Sí" else 0
+    diabetes = 1 if req.Diabetes == "Sí" else 0
+    fuma = {
+        "Fumador Actual - Todos los días": 1,
+        "Fumador Actual - Algunos días": 2,
+        "Exfumador": 3,
+        "No Fumo": 4
+    }[req.Fuma]
+    vapeo = {
+        "Todos los días": 1,
+        "Algunos días": 2,
+        "Raramente": 3,
+        "Nunca he usado": 4
+    }[req.Vapeo]
 
-    sexo_map = {"Hombre": "Male", "Mujer": "Female"}
-    fuma_map = {"Nunca": "Never", "Anteriormente": "Former", "Frecuentemente": "Current"}
-    act_map = {"Bajo": "Low", "Moderado": "Moderate", "Alto": "High"}
-    alc_map = {"No consumo": "None", "Bajo": "Low", "Moderado": "Moderate", "Alto": "High"}
-    sal_map = {"Bajo": "Low", "Moderado": "Moderate", "Alto": "High"}
     bmi = round(req.Peso / ((req.Altura / 100) ** 2), 2)
-    antecedentes = 1 if req.Antecedentes == "Sí" else 0
+
     return [
-        sexo_map[req.Sexo], req.Edad, bmi, act_map[req.Actividad], req.Suenho,
-        fuma_map[req.Fuma], antecedentes, req.Estres, alc_map[req.Alcohol], sal_map[req.Sal]
+        req.Age, sexo, bmi, req.MentHlth, frutas, verduras, sal,
+        actividad, fuma, vapeo, alcohol, diabetes, colesterol
     ]
 
 @app.post("/predict", response_model=PredictResponse)
@@ -90,91 +102,146 @@ def predecir(req: PredictRequest):
         raise HTTPException(status_code=404, detail=str(e))
 
     columnas = [
-        "Gender", "Age", "BMI", "Physical_Activity_Level", "Sleep_Duration",
-        "Smoking_Status", "Family_History", "Stress_Level", "Alcohol_Level", "Salt_Level"
+        "Age", "Sex", "BMI", "MentHlth", "Fruits", "Veggies",
+        "Salt", "PhysActivity", "Smoker", "Vaper",
+        "Alcohol", "Diabetes", "HighChol"
     ]
-    datos = transformar_a_lista(req)
+
+    datos = transformar_a_vector(req)
     df = pd.DataFrame([datos], columns=columnas)
 
-    if req.model == "svm":
-        df.rename(columns={"Alcohol_Level": "Alcohol_Intake", "Salt_Level": "Salt_Intake"}, inplace=True)
-        df = df[[
-            "Gender", "Age", "BMI", "Physical_Activity_Level", "Sleep_Duration",
-            "Smoking_Status", "Family_History", "Stress_Level", "Salt_Intake", "Alcohol_Intake"
-        ]]
+    print("📤 Datos enviados al modelo:")
+    print(df)
 
     try:
-        prob = float(modelo.predict_proba(df)[0][1])
+        if req.model in ["adaboost"]:
+            prob = float(modelo.predict_proba(df.to_numpy())[0][1])
+        else:
+            prob = float(modelo.predict_proba(df)[0][1])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Inferencia error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en predicción: {e}")
 
     pct = round(prob * 100, 2)
-    riesgo = "Alto" if prob >= 0.75 else "Moderado" if prob >= 0.5 else "Bajo"
-
+    riesgo = "Alto" if prob >= 0.65 else "Moderado" if prob >= 0.35 else "Bajo"
     return PredictResponse(model=req.model, probability=pct, risk=riesgo)
+
 
 @app.get("/metricas")
 def metricas():
     return {
-        "random_forest": {"accuracy": 0.88, "precision": 0.75, "recall": 0.80, "f1_score": 0.82},
-        "decision_tree": {"accuracy": 0.75, "precision": 0.74, "recall": 0.75, "f1_score": 0.75},
-        "xgboost": {"accuracy": 0.78, "precision": 0.78, "recall": 0.78, "f1_score": 0.78},
-        "adaboost": {"accuracy": 0.75, "precision": 0.75, "recall": 0.75, "f1_score": 0.75},
-        "lightgbm": {"accuracy": 0.79, "precision": 0.80, "recall": 0.79, "f1_score": 0.79},
-        "catboost": {"accuracy": 0.82, "precision": 0.86, "recall": 0.82, "f1_score": 0.83},
-        "red_neuronal": {"accuracy": 0.56, "precision": 0.60, "recall": 0.56, "f1_score": 0.57},
-        "svm": {"accuracy": 0.50, "precision": 0.59, "recall": 0.50, "f1_score": 0.52}
+        "random_forest": {
+            "accuracy": 0.970651,
+            "precision": 0.973545,
+            "recall": 0.961064,
+            "f1_score": 0.967264
+        },
+        "decision_tree": {
+            "accuracy": 0.687661,
+            "precision": 0.643744,
+            "recall": 0.688984,
+            "f1_score": 0.665596
+        },
+        "xgboost": {
+            "accuracy": 0.853470,
+            "precision": 0.845817,
+            "recall": 0.825376,
+            "f1_score": 0.835656
+        },
+        "adaboost": {
+            "accuracy": 0.731977,
+            "precision": 0.722924,
+            "recall": 0.741366,
+            "f1_score": 0.730229
+        },
+        "lightgbm": {
+            "accuracy": 0.732946,
+            "precision": 0.725869,
+            "recall": 0.737834,
+            "f1_score": 0.731802
+        },
+        "catboost": {
+            "accuracy": 0.732946,
+            "precision": 0.726043,
+            "recall": 0.737441,
+            "f1_score": 0.731698
+        },
+        "red_neuronal": {
+            "accuracy": 0.71,
+            "precision": 0.71,
+            "recall": 0.71,
+            "f1_score": 0.71
+        },
+        "svm_rbf": {
+            "accuracy": 0.699229,
+            "precision": 0.635312,
+            "recall": 0.782526,
+            "f1_score": 0.701277
+        }
     }
 
 @app.get("/auc_curvas")
 def auc_curvas():
     return {
-        "random_forest": {"fpr": [0.0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1.0],
-                          "tpr": [0.0, 0.6, 0.8, 0.88, 0.93, 0.97, 0.99, 0.995, 0.997, 0.999, 1.0]},
-        "decision_tree": {"fpr": [0.0, 0.1, 0.25, 0.4, 0.6, 0.8, 1.0],
-                          "tpr": [0.0, 0.45, 0.9, 0.95, 0.97, 0.98, 1.0]},
-        "xgboost": {"fpr": [0.0, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.9, 1.0],
-                    "tpr": [0.0, 0.35, 0.6, 0.75, 0.85, 0.93, 0.97, 0.985, 0.99, 1.0]},
-        "adaboost": {"fpr": [0.0, 0.18, 1.0], "tpr": [0.0, 0.67, 1.0]},
-        "catboost": {"fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
-                     "tpr": [0.0, 0.55, 0.75, 0.85, 0.95, 1.0, 1.0]},
-        "lightgbm": {"fpr": [0.0, 0.04, 0.08, 0.12, 0.2, 0.3, 1.0],
-                     "tpr": [0.0, 0.55, 0.75, 0.9, 1.0, 1.0, 1.0]},
-        "svm": {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                "tpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]},
-        "red_neuronal": {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                         "tpr": [0.0, 0.21, 0.42, 0.61, 0.81, 1.0]}
+        "random_forest": {
+            "fpr": [0.0, 0.01, 0.02, 0.04, 0.08, 0.15, 0.3, 0.5, 0.7, 0.9, 1.0],
+            "tpr": [0.0, 0.92, 0.96, 0.975, 0.985, 0.99, 0.995, 0.997, 0.998, 0.999, 1.0],
+        },
+        "decision_tree": {
+            "fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
+            "tpr": [0.0, 0.2, 0.4, 0.65, 0.82, 0.92, 1.0],
+        },
+        "xgboost": {
+            "fpr": [0.0, 0.03, 0.08, 0.15, 0.3, 0.5, 0.7, 0.9, 1.0],
+            "tpr": [0.0, 0.5, 0.75, 0.88, 0.94, 0.97, 0.985, 0.995, 1.0],
+        },
+        "adaboost": {
+            "fpr": [0.0, 0.05, 0.15, 0.35, 0.5, 0.75, 1.0],
+            "tpr": [0.0, 0.35, 0.6, 0.78, 0.89, 0.96, 1.0],
+        },
+        "catboost": {
+            "fpr": [0.0, 0.06, 0.15, 0.35, 0.5, 0.75, 1.0],
+            "tpr": [0.0, 0.45, 0.7, 0.85, 0.92, 0.97, 1.0],
+        },
+        "lightgbm": {
+            "fpr": [0.0, 0.06, 0.15, 0.35, 0.5, 0.75, 1.0],
+            "tpr": [0.0, 0.45, 0.72, 0.86, 0.93, 0.975, 1.0],
+        },
+        "svm_rbf": {
+            "fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0],
+            "tpr": [0.0, 0.25, 0.45, 0.65, 0.82, 0.93, 1.0],
+        },
+        "red_neuronal": {
+            "fpr": [0.0, 0.1, 0.25, 0.4, 0.6, 0.8, 1.0],
+            "tpr": [0.0, 0.3, 0.5, 0.7, 0.85, 0.95, 1.0],
+        }
     }
 
 @app.get("/loss_rate")
 def loss_rate():
     return {
-        "random_forest": {"train": 0.00, "test": 0.1176},
-        "decision_tree": {"train": 0.0835, "test": 0.2485},
-        "xgboost": {"train": 0.0954, "test": 0.1946},
-        "adaboost": {"train": 0.00, "test": 0.2477},
-        "catboost": {"train": 0.1280, "test": 0.1756},
-        "lightgbm": {"train": 0.1713, "test": 0.2124},
-        "svm": {"train": 0.4501, "test": 0.4838},
-        "red_neuronal": {"train": 0.2855, "test": 0.4428}
+        "random_forest": {"train": 0.1616, "test": 0.1769},
+        "decision_tree": {"train": 0.5501, "test": 0.5753},
+        "xgboost": {"train": 0.3058, "test": 0.3418},
+        "adaboost": {"train": 0.6163, "test": 0.6198},
+        "catboost": {"train": 0.4614, "test": 0.5131},
+        "lightgbm": {"train": 0.4463, "test": 0.5131},
+        "svm_rbf": {"train": 0.7489, "test": 0.7825},
+        "red_neuronal": {"train": 0.5327, "test": 0.5586}
     }
 
 @app.get("/tiempos_inferencia")
 def tiempos_inferencia():
     return {
-        "random_forest": 9.7655,
-        "decision_tree": 0.1543,
-        "xgboost": 0.4749,
-        "adaboost": 0.3062,
-        "catboost": 0.2726,
-        "lightgbm": 0.7771,
-        "svm": 5.8094,
-        "red_neuronal": 14.8979
+        "random_forest": 0.030724,
+        "decision_tree": 0.000170,
+        "xgboost": 0.013525,
+        "adaboost": 0.028975,
+        "catboost": 0.001440,
+        "lightgbm": 0.038512,
+        "svm_rbf": 0.130879,
+        "red_neuronal": 0.001964
     }
 
 #Run api: 
 #uvicorn main:app --reload
 #uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-
-
